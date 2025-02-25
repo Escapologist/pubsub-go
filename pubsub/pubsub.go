@@ -15,7 +15,7 @@ type HashTag = string
 
 type Post struct {
 	Timestamp Timestamp
-	User      User
+	User      User ``
 	Text      string
 }
 
@@ -113,7 +113,7 @@ func GetFollowers(user User) Set[User] {
 	return followers[user]
 }
 
-func GetFolloweed(user User) Set[User] {
+func GetFollowed(user User) Set[User] {
 	return following[user]
 }
 

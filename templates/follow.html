@@ -1,0 +1,18 @@
+{{ define "main" }}
+  <div class="container mt-5">
+        <hr>
+        <div><h1>{{.Title}}</h1></div>
+        <!-- Card deck for better visual grouping -->
+        <div>
+            {{range .Follows}}
+            <div>
+                <hr>
+                <h1> <a href="/user/{{.Displayname}}"><strong>{{ .Displayname }}</strong></a> @{{.Displayname}} </h1>
+                <p> <img src="/static/{{.Photo}}" alt="Photo of {{.Displayname}}" height="300"> </p>
+                <p> {{ .Bio }} </p>
+            </div>
+            {{end}}
+        </div>
+</div>
+</div>
+{{ end }}

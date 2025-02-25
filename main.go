@@ -90,7 +90,7 @@ func loginRequired(fn func(http.ResponseWriter, *http.Request, string)) http.Han
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
-		fn(w, r, string(u))
+		fn(w, r, u)
 	}
 }
 
@@ -121,12 +121,18 @@ func CheckCredentials(w http.ResponseWriter, r *http.Request) {
 func ShowMainPage(w http.ResponseWriter, r *http.Request, user string) {
 	title := "Posts from people you follow"
 	postsForUser := PostsForUser(User(user))
-	fmt.Printf("Posts relevant for user: %v\n", postsForUser)
 
-	data := map[string]any{"Title": title, "User": string(user), "Posts": postsForUser}
+	followed := GetFollowed(user)
+	followedProfiles := map[string]UserInfo{}
+	for user := range followed {
+		userInfo := GetuserInfo(user)
+		followedProfiles[user] = userInfo
+	}
 
-	t, _ := template.ParseFiles("templates/main.html")
-	t.Execute(w, data)
+	data := map[string]any{"Title": title, "User": string(user), "Posts": postsForUser, "FollowedProfiles": followedProfiles}
+
+	t, _ := template.ParseFiles("templates/base.html", "templates/main.html")
+	t.ExecuteTemplate(w, "base", data)
 }
 
 func MakePost(w http.ResponseWriter, r *http.Request, user string) {
@@ -142,7 +148,7 @@ func ShowUserPage(w http.ResponseWriter, r *http.Request, user string) {
 	userInfo := GetuserInfo(name)
 	posts := PostsByUser(name)
 	followers := GetFollowers(name)
-	following := GetFolloweed(name)
+	following := GetFollowed(name)
 	data := map[string]any{
 		"Title":     name,
 		"User":      string(name),
@@ -152,8 +158,47 @@ func ShowUserPage(w http.ResponseWriter, r *http.Request, user string) {
 		"Following": following,
 	}
 
-	t, _ := template.ParseFiles("templates/user.html")
-	t.Execute(w, data)
+	t, _ := template.ParseFiles("templates/base.html", "templates/user.html")
+	t.ExecuteTemplate(w, "base", data)
+}
+
+func ShowFollowers(w http.ResponseWriter, r *http.Request, user string) {
+	followers := GetFollowers(user)
+	ui := []UserInfo{}
+
+	for u := range followers {
+		fmt.Printf("FOLLOWER: %v\n", u)
+		ui = append(ui, GetuserInfo((u)))
+		fmt.Printf("UI: %v\n", ui)
+
+	}
+
+	data := map[string]any{
+		"Title":   "Followers of " + user,
+		"User":    user,
+		"Follows": ui,
+	}
+
+	t, _ := template.ParseFiles("templates/base.html", "templates/follow.html")
+	t.ExecuteTemplate(w, "base", data)
+}
+
+func ShowFollowed(w http.ResponseWriter, r *http.Request, user string) {
+	followed := GetFollowers(user)
+	ui := []UserInfo{}
+
+	for u := range followed {
+		ui = append(ui, GetuserInfo((u)))
+	}
+
+	data := map[string]any{
+		"Title":   "Followed by " + user,
+		"User":    user,
+		"Follows": ui,
+	}
+
+	t, _ := template.ParseFiles("templates/base.html", "templates/follow.html")
+	t.ExecuteTemplate(w, "base", data)
 }
 
 func main() {
@@ -162,8 +207,8 @@ func main() {
 	mux.HandleFunc("/", loginRequired(ShowMainPage))
 	mux.HandleFunc("POST /postmessage", loginRequired(MakePost))
 	mux.HandleFunc("GET /user/{name}", loginRequired(ShowUserPage))
-	mux.HandleFunc("GET /user/{name}/following", loginRequired(ShowUserPage))
-	mux.HandleFunc("GET /user/{name}/followers", loginRequired(ShowUserPage))
+	mux.HandleFunc("GET /user/{name}/following", loginRequired(ShowFollowed))
+	mux.HandleFunc("GET /user/{name}/followers", loginRequired(ShowFollowers))
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
 	s := http.Server{
@@ -183,14 +228,18 @@ func init() {
 
 	rich := UserInfo{Displayname: string(user1), Email: "rich@hello.com", Bio: "It's me!", Photo: "rich.webp"}
 	bob := UserInfo{Displayname: string(user2), Email: "bob@hello.com", Bio: "It's me, Bob!", Photo: "bob.webp"}
+	perry := UserInfo{Displayname: "perry", Email: "perry@hello.com", Bio: "It's me, Perry!", Photo: "perry.webp"}
+	kate := UserInfo{Displayname: "kate", Email: "kate@hello.com", Bio: "It's me, Kate!", Photo: "kiki.jpg"}
 
-	AddUserInfo(rich, bob)
+	AddUserInfo(rich, bob, perry, kate)
 
 	PostMessage("rich", "Hello world! #hi")
 	PostMessage("rich", "nothing to say. #nada #meh")
 	PostMessage("kev", "Ugh! #sounfair")
 	PostMessage(user2, "Something! #sounfair")
 	PostMessage("bob", "nothing to say. #nada #meh")
+	PostMessage("perry", "Well, this sucks. #sucks")
+	PostMessage("perry", `hey "nice" manbun haha it fuckin sucks you hipster asshole [he turns around and reveals he is a samurai from the tokugawa shogunate] oh fuck`)
 
 	fmt.Printf("%v\n", hashtagIndex)
 	fmt.Printf("%v\n", userPosts)
@@ -203,6 +252,9 @@ func init() {
 	Follow(user1, user2)
 	Follow("bob", "rich")
 	Follow("perry", "rich")
+	Follow("rich", "perry")
+	Follow("perry", "rich")
+	Follow("rich", "kate")
 
 	fmt.Printf("Followers: %v\n", followers)
 	fmt.Printf("Following: %v\n", following)
@@ -212,7 +264,7 @@ func init() {
 
 	Follow(user1, "perry")
 	Follow("perry", user1)
-	fmt.Printf("Followed: %v\n", GetFolloweed(user1))
+	fmt.Printf("Followed: %v\n", GetFollowed(user1))
 	fmt.Printf("Followers: %v\n", GetFollowers(user1))
 
 }
