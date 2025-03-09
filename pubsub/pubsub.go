@@ -2,8 +2,11 @@ package pubsub
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -15,7 +18,7 @@ type HashTag = string
 
 type Post struct {
 	Timestamp Timestamp
-	User      User ``
+	User      User
 	Text      string
 }
 
@@ -32,7 +35,6 @@ type UserInfo struct {
 }
 
 var hashtagPattern = regexp.MustCompile(`[#@]\w+`)
-var hashtagIndex = make(map[string][]Post)
 
 type Set[T comparable] map[T]bool
 
@@ -44,63 +46,91 @@ func NewSet[T comparable](items ...T) Set[T] {
 	return set
 }
 
-var userInfo = make(map[string]UserInfo)
+type PostsRepositoryInterface interface {
+	PostMessage(user User, text string)
+	PostsByUser(user User, limit ...int) []Post
+	PostsForUser(user User, limit ...int) []Post
+	Follow(user User, followedUser User)
+	GetFollowers(user User) Set[User]
+	GetFollowed(user User) Set[User]
+	AddUserInfo(ui ...UserInfo)
+	GetuserInfo(name string) UserInfo
+	Search(query string) []Post
+	GetHashTags() []string
+	SearchByTag(tag string) []Post
+}
 
-var following = make(map[User]Set[User])
-var followers = make(map[User]Set[User])
+type PostsRepository struct {
+	Posts     []Post
+	UserPosts map[User][]Post
+	UserInfo  map[string]UserInfo
 
-var posts []Post
-var userPosts = make(map[User][]Post)
+	Following map[User]Set[User]
+	Followers map[User]Set[User]
+
+	HashtagIndex map[string][]Post
+}
+
+func NewPostsRepository() *PostsRepository {
+	return &PostsRepository{
+		Posts:        []Post{},
+		UserPosts:    make(map[User][]Post),
+		UserInfo:     make(map[string]UserInfo),
+		Following:    make(map[User]Set[User]),
+		Followers:    make(map[User]Set[User]),
+		HashtagIndex: make(map[string][]Post),
+	}
+}
 
 // TODO save posts to a DB
-func PostMessage(user User, text string) {
+func (r *PostsRepository) PostMessage(user User, text string) {
 	timestamp := time.Now()
 	post := Post{timestamp, user, text}
 
-	posts = append(posts, post)
-	if len(userPosts[user]) == 0 {
-		userPosts[user] = []Post{}
+	r.Posts = append(r.Posts, post)
+	if len(r.UserPosts[user]) == 0 {
+		r.UserPosts[user] = []Post{}
 	}
-	userPosts[user] = append(userPosts[user], post)
+	r.UserPosts[user] = append(r.UserPosts[user], post)
 
 	for _, h := range hashtagPattern.FindAll([]byte(text), -1) {
 		key := string(h)
-		if len(hashtagIndex[key]) == 0 {
-			hashtagIndex[key] = []Post{}
+		if len(r.HashtagIndex[key]) == 0 {
+			r.HashtagIndex[key] = []Post{}
 		}
-		hashtagIndex[key] = append(hashtagIndex[key], post)
+		r.HashtagIndex[key] = append(r.HashtagIndex[key], post)
 	}
 }
 
-func Follow(user User, followedUser User) {
-	if following[user] == nil {
-		following[user] = make(Set[User])
+func (r *PostsRepository) Follow(user User, followedUser User) {
+	if r.Following[user] == nil {
+		r.Following[user] = make(Set[User])
 	}
-	following[user][followedUser] = true
+	r.Following[user][followedUser] = true
 
-	if followers[followedUser] == nil {
-		followers[followedUser] = make(Set[User])
+	if r.Followers[followedUser] == nil {
+		r.Followers[followedUser] = make(Set[User])
 	}
-	followers[followedUser][user] = true
+	r.Followers[followedUser][user] = true
 }
 
-func PostsByUser(user User, limit ...int) []Post {
+func (r *PostsRepository) PostsByUser(user User, limit ...int) []Post {
 	if len(limit) > 0 {
-		return userPosts[user][:limit[0]]
+		return r.UserPosts[user][:limit[0]]
 	}
-	posts := userPosts[user]
+	posts := r.UserPosts[user]
 	sort.Slice(posts, func(i, j int) bool {
 		return posts[i].Timestamp.After(posts[j].Timestamp)
 	})
 	return posts
 }
 
-func PostsForUser(user User, limit ...int) []Post {
-	followed := following[user]
+func (r *PostsRepository) PostsForUser(user User, limit ...int) []Post {
+	followed := r.Following[user]
 	relevantPosts := []Post{}
 	for k := range followed {
 		fmt.Printf("%v\n", k)
-		posts := userPosts[k]
+		posts := r.UserPosts[k]
 		relevantPosts = append(relevantPosts, posts...)
 	}
 	if len(limit) > 0 {
@@ -109,20 +139,38 @@ func PostsForUser(user User, limit ...int) []Post {
 	return relevantPosts
 }
 
-func GetFollowers(user User) Set[User] {
-	return followers[user]
+func (r *PostsRepository) GetFollowers(user User) Set[User] {
+	return r.Followers[user]
 }
 
-func GetFollowed(user User) Set[User] {
-	return following[user]
+func (r *PostsRepository) GetFollowed(user User) Set[User] {
+	return r.Following[user]
 }
 
-func AddUserInfo(ui ...UserInfo) {
+func (r *PostsRepository) AddUserInfo(ui ...UserInfo) {
 	for _, u := range ui {
-		userInfo[u.Displayname] = u
+		r.UserInfo[u.Displayname] = u
 	}
 }
 
-func GetuserInfo(name string) UserInfo {
-	return userInfo[name]
+func (r *PostsRepository) GetuserInfo(name string) UserInfo {
+	return r.UserInfo[name]
+}
+
+func (r *PostsRepository) Search(query string) []Post {
+	res := []Post{}
+	for _, p := range r.Posts {
+		if strings.Contains(p.Text, query) {
+			res = append(res, p)
+		}
+	}
+	return res
+}
+
+func (r *PostsRepository) SearchByTag(tag string) []Post {
+	return r.HashtagIndex[tag]
+}
+
+func (r *PostsRepository) GetHashTags() []string {
+	return slices.Sorted(maps.Keys(r.HashtagIndex))
 }

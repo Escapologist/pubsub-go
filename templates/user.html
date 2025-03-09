@@ -1,7 +1,6 @@
 {{ define "main" }}
 
     <div><h1>{{.User}}</h1></div>
-    
     <div>
       <hr>
       <h1> <strong> {{ .UserInfo.Displayname }}</strong> @{{.User}} </h1>
@@ -21,7 +20,7 @@
                 <div class="card mb-4">
                     <div class="row no-gutters">
                         <div class="col-md-3">
-                            <img src="/static/{{.User}}.webp" class="card-img" alt="Photo of {{.User}}" >
+                            <img src="/static/{{$.UserInfo.Photo}}" class="card-img" alt="Photo of {{.User}}" >
                         </div>
                         <div class="col-md-9">
                             <div class="card-body">

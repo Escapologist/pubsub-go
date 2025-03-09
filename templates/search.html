@@ -1,24 +1,7 @@
    {{ define "main" }} 
-   
-    <div><h1>Hello, {{.User}}!</h1></div>
-    <div>
-
-      <form method="post" action="/postmessage"></formmethod>
-        <div class="mb-3">
-          <label for="exampleFormControlTextarea1" class="form-label">Say something...</label>
-          <textarea class="form-control" type="text" name="message" id="exampleFormControlTextarea1" rows="3"></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Post</button>
-      </form>
-    </div>
-
-    
-    <div>
-      <section>
-      <hr>
-      <h2>Posts by people you follow</h2>
-      <table>
-
+   <div class="container mt-5">
+    <hr>
+      <h2>Posts related to "{{ .Query }}"</h2>
         {{range .Posts}}
         {{$profile := index $.FollowedProfiles .User}}
         <div class="card mb-4">
@@ -34,10 +17,6 @@
                 </div>
             </div>
         </div>
+        </div>
     {{end}}
-      </table>
-      </section>
-    </div>
-  </div>
-
 {{ end }}
