@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 
 	ps "pubsub.com/pubsub/pubsub"
 )
@@ -63,9 +64,12 @@ func (h *AppHandler) ShowLoginPage(w http.ResponseWriter, r *http.Request) {
 		if u != "" {
 			http.Redirect(w, r, "/", http.StatusFound)
 		}
-		data := map[string]string{"Title": "log in"}
-		t, _ := template.ParseFiles("templates/login.html")
-		t.Execute(w, data)
+		data := map[string]string{"Title": "log in", "User": ""}
+		t, err := template.ParseFiles("templates/base.html", "templates/login.html")
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+		t.ExecuteTemplate(w, "base", data)
 	}
 }
 
@@ -75,10 +79,7 @@ func (h *AppHandler) loginRequired(fn func(http.ResponseWriter, *http.Request, s
 		if err != nil {
 			http.Redirect(w, r, "/login", http.StatusFound)
 		}
-		fmt.Printf("Token: %v\n", token)
-
 		u := h.LoggedInUsers[token.Value]
-		fmt.Printf("Logged in User %v\n", u)
 		if u == "" {
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
@@ -118,7 +119,7 @@ func (h *AppHandler) ShowMainPage(w http.ResponseWriter, r *http.Request, user s
 	followed := h.Repo.GetFollowed(user)
 	followedProfiles := map[string]ps.UserInfo{}
 	for user := range followed {
-		userInfo := h.Repo.GetuserInfo(user)
+		userInfo := h.Repo.GetUserInfo(user)
 		followedProfiles[user] = userInfo
 	}
 
@@ -136,12 +137,27 @@ func (h *AppHandler) MakePost(w http.ResponseWriter, r *http.Request, user strin
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+func (h *AppHandler) FollowUser(w http.ResponseWriter, r *http.Request, user string) {
+	userToFollow := strings.Split(r.URL.Path, "/")[2]
+
+	h.Repo.Follow(user, userToFollow)
+	http.Redirect(w, r, fmt.Sprintf("/user/%s", userToFollow), http.StatusFound)
+}
+
+func (h *AppHandler) UnfollowUser(w http.ResponseWriter, r *http.Request, user string) {
+	userToUnfollow := strings.Split(r.URL.Path, "/")[2]
+
+	h.Repo.Unfollow(user, userToUnfollow)
+	http.Redirect(w, r, fmt.Sprintf("/user/%s", userToUnfollow), http.StatusFound)
+}
+
 func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, user string) {
 	name := r.PathValue("name")
-	userInfo := h.Repo.GetuserInfo(name)
+	userInfo := h.Repo.GetUserInfo(name)
 	posts := h.Repo.PostsByUser(name)
 	followers := h.Repo.GetFollowers(name)
 	following := h.Repo.GetFollowed(name)
+	followed := followers[user]
 	data := map[string]any{
 		"Title":     name,
 		"User":      string(name),
@@ -149,6 +165,7 @@ func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, user s
 		"Posts":     posts,
 		"Followers": followers,
 		"Following": following,
+		"Followed":  followed,
 	}
 
 	t, _ := template.ParseFiles("templates/base.html", "templates/user.html")
@@ -161,7 +178,7 @@ func (h *AppHandler) ShowFollowers(w http.ResponseWriter, r *http.Request, user 
 
 	for u := range followers {
 		fmt.Printf("FOLLOWER: %v\n", u)
-		ui = append(ui, h.Repo.GetuserInfo((u)))
+		ui = append(ui, h.Repo.GetUserInfo((u)))
 		fmt.Printf("UI: %v\n", ui)
 
 	}
@@ -177,11 +194,11 @@ func (h *AppHandler) ShowFollowers(w http.ResponseWriter, r *http.Request, user 
 }
 
 func (h *AppHandler) ShowFollowed(w http.ResponseWriter, r *http.Request, user string) {
-	followed := h.Repo.GetFollowers(user)
+	followed := h.Repo.GetFollowed(user)
 	ui := []ps.UserInfo{}
 
 	for u := range followed {
-		ui = append(ui, h.Repo.GetuserInfo((u)))
+		ui = append(ui, h.Repo.GetUserInfo((u)))
 	}
 
 	data := map[string]any{
@@ -202,14 +219,15 @@ func (h *AppHandler) SearchPosts(w http.ResponseWriter, r *http.Request, user st
 	fmt.Printf("Query: %v\n", query)
 	fmt.Printf("Posts: %v\n", postsFound)
 
-	followed := h.Repo.GetFollowed(user)
 	followedProfiles := map[string]ps.UserInfo{}
-	for user := range followed {
-		userInfo := h.Repo.GetuserInfo(user)
-		followedProfiles[user] = userInfo
+	for _, post := range postsFound {
+		userInfo := h.Repo.GetUserInfo(post.User)
+		followedProfiles[post.User] = userInfo
 	}
+	fmt.Printf("followedProfiles: %v\n", followedProfiles)
 
 	data := map[string]any{
+		"User":             user,
 		"Posts":            postsFound,
 		"Query":            query,
 		"FollowedProfiles": followedProfiles,
@@ -226,7 +244,7 @@ func (h *AppHandler) SearchHashTag(w http.ResponseWriter, r *http.Request, user 
 	followed := h.Repo.GetFollowed(user)
 	followedProfiles := map[string]ps.UserInfo{}
 	for user := range followed {
-		userInfo := h.Repo.GetuserInfo(user)
+		userInfo := h.Repo.GetUserInfo(user)
 		followedProfiles[user] = userInfo
 	}
 
@@ -246,6 +264,8 @@ func MakeServer(h *AppHandler) *http.ServeMux {
 	mux.HandleFunc("/", h.loginRequired(h.ShowMainPage))
 	mux.HandleFunc("POST /postmessage", h.loginRequired(h.MakePost))
 	mux.HandleFunc("GET /user/{name}", h.loginRequired(h.ShowUserPage))
+	mux.HandleFunc("POST /user/{name}/follow", h.loginRequired(h.FollowUser))     // New endpoint for following a user
+	mux.HandleFunc("POST /user/{name}/unfollow", h.loginRequired(h.UnfollowUser)) // New endpoint for unfollowing a user
 	mux.HandleFunc("GET /user/{name}/following", h.loginRequired(h.ShowFollowed))
 	mux.HandleFunc("GET /user/{name}/followers", h.loginRequired(h.ShowFollowers))
 	mux.HandleFunc("GET /search", h.loginRequired(h.SearchPosts))

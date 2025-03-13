@@ -1,37 +1,46 @@
 {{ define "main" }}
 
-    <div><h1>{{.User}}</h1></div>
-    <div>
-      <hr>
-      <h1> <strong> {{ .UserInfo.Displayname }}</strong> @{{.User}} </h1>
-      <a class="pure-button" href="{{.User}}"> {{ len .Posts }} Posts </a>
-      <a class="pure-button" href="{{.User}}/following"> {{ len .Following }} Following </a>
-      <a class="pure-button" href="{{.User}}/followers"> {{ len .Followers }} Followers </a>
-      <p> <img src="/static/{{.UserInfo.Photo}}" alt="Photo of {{.User}}" width=400> </p>
-      <p> {{ .UserInfo.Bio }} </p>
-  </div>
+<div>
+    <h1>{{.User}}</h1>
+</div>
+<div>
+    <hr>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h1><strong>{{ .UserInfo.Displayname }}</strong> @{{.User}}</h1>
+        <form id="postForm" action="{{ if .Followed }}/user/{{.User}}/unfollow{{ else }}/user/{{.User}}/follow{{ end }}" method="POST">
+            <button type="submit" class="btn btn-primary">{{ if .Followed }}Unfollow{{ else }}Follow{{ end }}</button>
+        </form>
+    </div>
+    <a class="pure-button" href="{{.User}}"> {{ len .Posts }} Posts </a>
+    <a class="pure-button" href="{{.User}}/following"> {{ len .Following }} Following </a>
+    <a class="pure-button" href="{{.User}}/followers"> {{ len .Followers }} Followers </a>
+    <p> <img src="/static/{{.UserInfo.Photo}}" alt="Photo of {{.User}}" width=400> </p>
+    <p> {{ .UserInfo.Bio }} </p>
+</div>
 
-  <div class="container mt-5">
-        <hr>
-        <h2>Posts</h2>
-        <!-- Card deck for better visual grouping -->
-        <div>
-            {{range .Posts}}
-                <div class="card mb-4">
-                    <div class="row no-gutters">
-                        <div class="col-md-3">
-                            <img src="/static/{{$.UserInfo.Photo}}" class="card-img" alt="Photo of {{.User}}" >
-                        </div>
-                        <div class="col-md-9">
-                            <div class="card-body">
-                                <h5 class="card-title"><a href="/user/{{.User}}"><strong>{{.User}}</strong></a> <muted>· {{.TimeSincePosted}}</muted></h5>
-                                <p class="card-text">{{.Text}}</p>
-                            </div>
-                        </div>
+<div class="container mt-5">
+    <hr>
+    <h2>Posts</h2>
+    <!-- Card deck for better visual grouping -->
+    <div>
+        {{range .Posts}}
+        <div class="card mb-4">
+            <div class="row no-gutters">
+                <div class="col-md-3">
+                    <img src="/static/{{$.UserInfo.Photo}}" class="card-img" alt="Photo of {{.User}}">
+                </div>
+                <div class="col-md-9">
+                    <div class="card-body">
+                        <h5 class="card-title"><a href="/user/{{.User}}"><strong>{{.User}}</strong></a>
+                            <muted>· {{.TimeSincePosted}}</muted>
+                        </h5>
+                        <p class="card-text">{{.Text}}</p>
                     </div>
                 </div>
-            {{end}}
+            </div>
         </div>
+        {{end}}
+    </div>
 </div>
 </div>
 {{ end }}

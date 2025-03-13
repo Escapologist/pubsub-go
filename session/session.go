@@ -40,7 +40,7 @@ func LoadRepo() ps.PostsRepositoryInterface {
 	repo.Follow("rich", "perry")
 	repo.Follow("perry", "rich")
 	repo.Follow("rich", "kate")
-	repo.Follow("rich", "kev")
+	// repo.Follow("rich", "kev")
 
 	fmt.Printf("Posts by user: %v\n", repo.PostsByUser(user1))
 	fmt.Printf("Posts relevant for user: %v\n", repo.PostsForUser(user1))

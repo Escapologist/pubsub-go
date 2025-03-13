@@ -51,10 +51,11 @@ type PostsRepositoryInterface interface {
 	PostsByUser(user User, limit ...int) []Post
 	PostsForUser(user User, limit ...int) []Post
 	Follow(user User, followedUser User)
+	Unfollow(user User, followedUser User)
 	GetFollowers(user User) Set[User]
 	GetFollowed(user User) Set[User]
 	AddUserInfo(ui ...UserInfo)
-	GetuserInfo(name string) UserInfo
+	GetUserInfo(name string) UserInfo
 	Search(query string) []Post
 	GetHashTags() []string
 	SearchByTag(tag string) []Post
@@ -95,9 +96,6 @@ func (r *PostsRepository) PostMessage(user User, text string) {
 
 	for _, h := range hashtagPattern.FindAll([]byte(text), -1) {
 		key := string(h)
-		if len(r.HashtagIndex[key]) == 0 {
-			r.HashtagIndex[key] = []Post{}
-		}
 		r.HashtagIndex[key] = append(r.HashtagIndex[key], post)
 	}
 }
@@ -114,14 +112,27 @@ func (r *PostsRepository) Follow(user User, followedUser User) {
 	r.Followers[followedUser][user] = true
 }
 
+func (r *PostsRepository) Unfollow(user User, followedUser User) {
+	delete(r.Following[user], followedUser)
+	delete(r.Followers[followedUser], user)
+	fmt.Printf("deletion of %v\n", followedUser)
+
+}
+
 func (r *PostsRepository) PostsByUser(user User, limit ...int) []Post {
-	if len(limit) > 0 {
-		return r.UserPosts[user][:limit[0]]
-	}
 	posts := r.UserPosts[user]
+	if len(posts) == 0 {
+		return []Post{}
+	}
+
 	sort.Slice(posts, func(i, j int) bool {
 		return posts[i].Timestamp.After(posts[j].Timestamp)
 	})
+
+	if len(limit) > 0 && limit[0] < len(posts) {
+		return posts[:limit[0]]
+	}
+
 	return posts
 }
 
@@ -129,13 +140,14 @@ func (r *PostsRepository) PostsForUser(user User, limit ...int) []Post {
 	followed := r.Following[user]
 	relevantPosts := []Post{}
 	for k := range followed {
-		fmt.Printf("%v\n", k)
 		posts := r.UserPosts[k]
 		relevantPosts = append(relevantPosts, posts...)
 	}
-	if len(limit) > 0 {
+
+	if len(limit) > 0 && limit[0] < len(relevantPosts) {
 		return relevantPosts[:limit[0]]
 	}
+
 	return relevantPosts
 }
 
@@ -153,8 +165,8 @@ func (r *PostsRepository) AddUserInfo(ui ...UserInfo) {
 	}
 }
 
-func (r *PostsRepository) GetuserInfo(name string) UserInfo {
-	return r.UserInfo[name]
+func (r *PostsRepository) GetUserInfo(name string) UserInfo {
+	return r.UserInfo[strings.ToLower(name)]
 }
 
 func (r *PostsRepository) Search(query string) []Post {
