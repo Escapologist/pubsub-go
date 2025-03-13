@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"strings"
 
 	ps "pubsub.com/pubsub/pubsub"
 )
@@ -134,21 +133,22 @@ func (h *AppHandler) MakePost(w http.ResponseWriter, r *http.Request, user strin
 	message := r.Form.Get("message")
 	fmt.Printf("message %v", message)
 	h.Repo.PostMessage(user, message)
+
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (h *AppHandler) FollowUser(w http.ResponseWriter, r *http.Request, user string) {
-	userToFollow := strings.Split(r.URL.Path, "/")[2]
+	followee := r.PathValue("followee")
+	h.Repo.Follow(user, followee)
 
-	h.Repo.Follow(user, userToFollow)
-	http.Redirect(w, r, fmt.Sprintf("/user/%s", userToFollow), http.StatusFound)
+	http.Redirect(w, r, fmt.Sprintf("/user/%s", followee), http.StatusFound)
 }
 
 func (h *AppHandler) UnfollowUser(w http.ResponseWriter, r *http.Request, user string) {
-	userToUnfollow := strings.Split(r.URL.Path, "/")[2]
+	followee := r.PathValue("followee")
+	h.Repo.Unfollow(user, followee)
 
-	h.Repo.Unfollow(user, userToUnfollow)
-	http.Redirect(w, r, fmt.Sprintf("/user/%s", userToUnfollow), http.StatusFound)
+	http.Redirect(w, r, fmt.Sprintf("/user/%s", followee), http.StatusFound)
 }
 
 func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, user string) {
@@ -168,7 +168,10 @@ func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, user s
 		"Followed":  followed,
 	}
 
-	t, _ := template.ParseFiles("templates/base.html", "templates/user.html")
+	t, err := template.ParseFiles("templates/base.html", "templates/user.html")
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	}
 	t.ExecuteTemplate(w, "base", data)
 }
 
@@ -264,8 +267,8 @@ func MakeServer(h *AppHandler) *http.ServeMux {
 	mux.HandleFunc("/", h.loginRequired(h.ShowMainPage))
 	mux.HandleFunc("POST /postmessage", h.loginRequired(h.MakePost))
 	mux.HandleFunc("GET /user/{name}", h.loginRequired(h.ShowUserPage))
-	mux.HandleFunc("POST /user/{name}/follow", h.loginRequired(h.FollowUser))     // New endpoint for following a user
-	mux.HandleFunc("POST /user/{name}/unfollow", h.loginRequired(h.UnfollowUser)) // New endpoint for unfollowing a user
+	mux.HandleFunc("POST /user/{followee}/follow", h.loginRequired(h.FollowUser))     // New endpoint for following a user
+	mux.HandleFunc("POST /user/{followee}/unfollow", h.loginRequired(h.UnfollowUser)) // New endpoint for unfollowing a user
 	mux.HandleFunc("GET /user/{name}/following", h.loginRequired(h.ShowFollowed))
 	mux.HandleFunc("GET /user/{name}/followers", h.loginRequired(h.ShowFollowers))
 	mux.HandleFunc("GET /search", h.loginRequired(h.SearchPosts))
