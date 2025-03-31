@@ -23,7 +23,6 @@ func (h *AppHandler) CheckUser(u string, pw string) bool {
 
 func (h *AppHandler) GetLoggedInUser(r *http.Request) string {
 	cookie, err := r.Cookie("token")
-	fmt.Printf("User cookie: %v\n", cookie)
 	if err != nil {
 		return ""
 	}
@@ -31,46 +30,6 @@ func (h *AppHandler) GetLoggedInUser(r *http.Request) string {
 }
 
 // end Auth
-
-func (h *AppHandler) ShowLoginPage(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		r.ParseForm()
-		user := r.Form.Get("username")
-		pw := r.Form.Get("password")
-		loggedIn := h.CheckUser(user, pw)
-		fmt.Printf("User %v\n", user)
-		fmt.Printf("Password %v\n", pw)
-		fmt.Printf("Logged in %v\n", loggedIn)
-
-		if !loggedIn {
-			http.Redirect(w, r, "/login", http.StatusUnauthorized)
-			return
-		}
-
-		randValues := make([]byte, 32)
-		rand.Read(randValues)
-		token := base64.URLEncoding.EncodeToString(randValues)
-
-		h.LoggedInUsers[(token)] = ps.User(user)
-		fmt.Printf("Logged in users: %v\n", h.LoggedInUsers)
-
-		cookie := http.Cookie{Name: "token", Value: token}
-		http.SetCookie(w, &cookie)
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	} else {
-		u := h.GetLoggedInUser(r)
-		if u != "" {
-			http.Redirect(w, r, "/", http.StatusFound)
-		}
-		data := map[string]string{"Title": "log in", "User": ""}
-		t, err := template.ParseFiles("templates/base.html", "templates/login.html")
-		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-		}
-		t.ExecuteTemplate(w, "base", data)
-	}
-}
 
 func (h *AppHandler) loginRequired(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -87,28 +46,43 @@ func (h *AppHandler) loginRequired(fn func(http.ResponseWriter, *http.Request, s
 	}
 }
 
-// On login POST
-func (h *AppHandler) CheckCredentials(w http.ResponseWriter, r *http.Request) {
+func (h *AppHandler) ShowLoginPage(w http.ResponseWriter, r *http.Request) {
+	u := h.GetLoggedInUser(r)
+	if u != "" {
+		http.Redirect(w, r, "/", http.StatusFound)
+	}
+	data := map[string]string{"Title": "log in", "User": ""}
+	t, err := template.ParseFiles("templates/base.html", "templates/login.html")
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	}
+	t.ExecuteTemplate(w, "base", data)
+}
+
+func (h *AppHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	user := r.Form.Get("user")
+	user := r.Form.Get("username")
 	pw := r.Form.Get("password")
 	loggedIn := h.CheckUser(user, pw)
+	fmt.Printf("User %v\n", user)
+	fmt.Printf("Password %v\n", pw)
+	fmt.Printf("Logged in %v\n", loggedIn)
+
 	if !loggedIn {
 		http.Redirect(w, r, "/login", http.StatusUnauthorized)
 		return
 	}
 
-	token := make([]byte, 32)
-	_, err := rand.Read(token)
-	if err != nil {
-		http.Redirect(w, r, "/", http.StatusContinue)
-		return
-	}
-	h.LoggedInUsers[string(token)] = ps.User(user)
+	randValues := make([]byte, 32)
+	rand.Read(randValues)
+	token := base64.URLEncoding.EncodeToString(randValues)
 
-	cookie := http.Cookie{Name: user, Value: string(token)}
+	h.LoggedInUsers[(token)] = ps.User(user)
+	fmt.Printf("Logged in users: %v\n", h.LoggedInUsers)
+
+	cookie := http.Cookie{Name: "token", Value: token}
 	http.SetCookie(w, &cookie)
-	h.ShowMainPage(w, r, user)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (h *AppHandler) ShowMainPage(w http.ResponseWriter, r *http.Request, user string) {
@@ -122,7 +96,19 @@ func (h *AppHandler) ShowMainPage(w http.ResponseWriter, r *http.Request, user s
 		followedProfiles[user] = userInfo
 	}
 
-	data := map[string]any{"Title": title, "User": string(user), "Posts": postsForUser, "FollowedProfiles": followedProfiles}
+	flashMessage := ""
+	if cookie, err := r.Cookie("flash"); err == nil {
+		flashMessage = cookie.Value
+		http.SetCookie(w, &http.Cookie{Name: "flash", Value: "", MaxAge: -1})
+	}
+
+	data := map[string]any{
+		"Title":            title,
+		"User":             string(user),
+		"Posts":            postsForUser,
+		"FollowedProfiles": followedProfiles,
+		"FlashMessage":     flashMessage,
+	}
 
 	t, _ := template.ParseFiles("templates/base.html", "templates/main.html")
 	t.ExecuteTemplate(w, "base", data)
@@ -131,8 +117,12 @@ func (h *AppHandler) ShowMainPage(w http.ResponseWriter, r *http.Request, user s
 func (h *AppHandler) MakePost(w http.ResponseWriter, r *http.Request, user string) {
 	r.ParseForm()
 	message := r.Form.Get("message")
-	fmt.Printf("message %v", message)
 	h.Repo.PostMessage(user, message)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  "flash",
+		Value: "Post created successfully!",
+	})
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
@@ -176,7 +166,8 @@ func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, user s
 }
 
 func (h *AppHandler) ShowFollowers(w http.ResponseWriter, r *http.Request, user string) {
-	followers := h.Repo.GetFollowers(user)
+	followee := r.PathValue("followee")
+	followers := h.Repo.GetFollowers(followee)
 	ui := []ps.UserInfo{}
 
 	for u := range followers {
@@ -187,8 +178,8 @@ func (h *AppHandler) ShowFollowers(w http.ResponseWriter, r *http.Request, user 
 	}
 
 	data := map[string]any{
-		"Title":   "Followers of " + user,
-		"User":    user,
+		"Title":   "Followers of " + followee,
+		"User":    followee,
 		"Follows": ui,
 	}
 
@@ -197,7 +188,8 @@ func (h *AppHandler) ShowFollowers(w http.ResponseWriter, r *http.Request, user 
 }
 
 func (h *AppHandler) ShowFollowed(w http.ResponseWriter, r *http.Request, user string) {
-	followed := h.Repo.GetFollowed(user)
+	follower := r.PathValue("follower")
+	followed := h.Repo.GetFollowed(follower)
 	ui := []ps.UserInfo{}
 
 	for u := range followed {
@@ -205,8 +197,8 @@ func (h *AppHandler) ShowFollowed(w http.ResponseWriter, r *http.Request, user s
 	}
 
 	data := map[string]any{
-		"Title":   "Followed by " + user,
-		"User":    user,
+		"Title":   "Followed by " + follower,
+		"User":    follower,
 		"Follows": ui,
 	}
 
@@ -263,14 +255,17 @@ func (h *AppHandler) SearchHashTag(w http.ResponseWriter, r *http.Request, user 
 
 func MakeServer(h *AppHandler) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/login", h.ShowLoginPage)
+
+	mux.HandleFunc("GET /login", h.ShowLoginPage)
+	mux.HandleFunc("POST /login", h.HandleLogin)
+
 	mux.HandleFunc("/", h.loginRequired(h.ShowMainPage))
 	mux.HandleFunc("POST /postmessage", h.loginRequired(h.MakePost))
 	mux.HandleFunc("GET /user/{name}", h.loginRequired(h.ShowUserPage))
 	mux.HandleFunc("POST /user/{followee}/follow", h.loginRequired(h.FollowUser))     // New endpoint for following a user
 	mux.HandleFunc("POST /user/{followee}/unfollow", h.loginRequired(h.UnfollowUser)) // New endpoint for unfollowing a user
-	mux.HandleFunc("GET /user/{name}/following", h.loginRequired(h.ShowFollowed))
-	mux.HandleFunc("GET /user/{name}/followers", h.loginRequired(h.ShowFollowers))
+	mux.HandleFunc("GET /user/{follower}/following", h.loginRequired(h.ShowFollowed))
+	mux.HandleFunc("GET /user/{followee}/followers", h.loginRequired(h.ShowFollowers))
 	mux.HandleFunc("GET /search", h.loginRequired(h.SearchPosts))
 	mux.HandleFunc("GET /hashtag/{tag}", h.loginRequired(h.SearchHashTag))
 

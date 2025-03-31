@@ -11,9 +11,9 @@ func LoadRepo() ps.PostsRepositoryInterface {
 	var user1 ps.User = "rich"
 	var user2 ps.User = "bob"
 
-	rich := ps.UserInfo{Displayname: string(user1), Email: "rich@hello.com", Bio: "It's me!", Photo: "rich.webp"}
+	rich := ps.UserInfo{Displayname: string(user1), Email: "rich@hello.com", Bio: "It's me!", Photo: "rich.png"}
 	bob := ps.UserInfo{Displayname: string(user2), Email: "bob@hello.com", Bio: "It's me, Bob!", Photo: "bob.webp"}
-	perry := ps.UserInfo{Displayname: "perry", Email: "perry@hello.com", Bio: "It's me, Perry!", Photo: "perry.webp"}
+	perry := ps.UserInfo{Displayname: "perry", Email: "perry@hello.com", Bio: "It's me, Perry!", Photo: "perry.png"}
 	kate := ps.UserInfo{Displayname: "kate", Email: "kate@hello.com", Bio: "It's me, Kate!", Photo: "kiki.jpg"}
 	kev := ps.UserInfo{Displayname: "kev", Email: "kev@hello.com", Bio: "It's me, Kev!", Photo: "png-transparent-the-simpson-character-cletus-spuckler-groundskeeper-willie-snake-jailbird-mayor-quimby-ralph-wiggum-the-simpsons-movie-miscellaneous-television-vertebrate.png"}
 

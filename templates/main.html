@@ -1,6 +1,14 @@
-   {{ define "main" }} 
+{{ define "main" }} 
    
     <div><h1>Hello, {{.User}}!</h1></div>
+    {{ if .FlashMessage }}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ .FlashMessage }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    {{ end }}
     <div>
 
       <form method="post" action="/postmessage"></formmethod>
