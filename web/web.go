@@ -85,15 +85,15 @@ func (h *AppHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (h *AppHandler) ShowMainPage(w http.ResponseWriter, r *http.Request, user string) {
+func (h *AppHandler) ShowMainPage(w http.ResponseWriter, r *http.Request, loggedInUser string) {
 	title := "Posts from people you follow"
-	postsForUser := h.Repo.PostsForUser(ps.User(user))
+	postsForUser := h.Repo.PostsForUser(ps.User(loggedInUser))
 
-	followed := h.Repo.GetFollowed(user)
+	followed := h.Repo.GetFollowed(loggedInUser)
 	followedProfiles := map[string]ps.UserInfo{}
-	for user := range followed {
-		userInfo := h.Repo.GetUserInfo(user)
-		followedProfiles[user] = userInfo
+	for u := range followed {
+		userInfo := h.Repo.GetUserInfo(u)
+		followedProfiles[u] = userInfo
 	}
 
 	flashMessage := ""
@@ -104,7 +104,7 @@ func (h *AppHandler) ShowMainPage(w http.ResponseWriter, r *http.Request, user s
 
 	data := map[string]any{
 		"Title":            title,
-		"User":             string(user),
+		"LoggedInUser":     string(loggedInUser),
 		"Posts":            postsForUser,
 		"FollowedProfiles": followedProfiles,
 		"FlashMessage":     flashMessage,
@@ -141,21 +141,22 @@ func (h *AppHandler) UnfollowUser(w http.ResponseWriter, r *http.Request, user s
 	http.Redirect(w, r, fmt.Sprintf("/user/%s", followee), http.StatusFound)
 }
 
-func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, user string) {
+func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, loggedInUser string) {
 	name := r.PathValue("name")
 	userInfo := h.Repo.GetUserInfo(name)
 	posts := h.Repo.PostsByUser(name)
 	followers := h.Repo.GetFollowers(name)
 	following := h.Repo.GetFollowed(name)
-	followed := followers[user]
+	followed := followers[loggedInUser]
 	data := map[string]any{
-		"Title":     name,
-		"User":      string(name),
-		"UserInfo":  userInfo,
-		"Posts":     posts,
-		"Followers": followers,
-		"Following": following,
-		"Followed":  followed,
+		"Title":        name,
+		"LoggedInUser": loggedInUser,
+		"User":         string(name),
+		"UserInfo":     userInfo,
+		"Posts":        posts,
+		"Followers":    followers,
+		"Following":    following,
+		"Followed":     followed,
 	}
 
 	t, err := template.ParseFiles("templates/base.html", "templates/user.html")
@@ -165,7 +166,7 @@ func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, user s
 	t.ExecuteTemplate(w, "base", data)
 }
 
-func (h *AppHandler) ShowFollowers(w http.ResponseWriter, r *http.Request, user string) {
+func (h *AppHandler) ShowFollowers(w http.ResponseWriter, r *http.Request, loggedInUser string) {
 	followee := r.PathValue("followee")
 	followers := h.Repo.GetFollowers(followee)
 	ui := []ps.UserInfo{}
@@ -178,16 +179,17 @@ func (h *AppHandler) ShowFollowers(w http.ResponseWriter, r *http.Request, user 
 	}
 
 	data := map[string]any{
-		"Title":   "Followers of " + followee,
-		"User":    followee,
-		"Follows": ui,
+		"Title":        "Followers of " + followee,
+		"User":         followee,
+		"LoggedInUser": loggedInUser,
+		"Follows":      ui,
 	}
 
 	t, _ := template.ParseFiles("templates/base.html", "templates/follow.html")
 	t.ExecuteTemplate(w, "base", data)
 }
 
-func (h *AppHandler) ShowFollowed(w http.ResponseWriter, r *http.Request, user string) {
+func (h *AppHandler) ShowFollowed(w http.ResponseWriter, r *http.Request, loggedInUser string) {
 	follower := r.PathValue("follower")
 	followed := h.Repo.GetFollowed(follower)
 	ui := []ps.UserInfo{}
@@ -197,9 +199,10 @@ func (h *AppHandler) ShowFollowed(w http.ResponseWriter, r *http.Request, user s
 	}
 
 	data := map[string]any{
-		"Title":   "Followed by " + follower,
-		"User":    follower,
-		"Follows": ui,
+		"Title":        "Followed by " + follower,
+		"User":         follower,
+		"LoggedInUser": loggedInUser,
+		"Follows":      ui,
 	}
 
 	t, _ := template.ParseFiles("templates/base.html", "templates/follow.html")
@@ -222,7 +225,7 @@ func (h *AppHandler) SearchPosts(w http.ResponseWriter, r *http.Request, user st
 	fmt.Printf("followedProfiles: %v\n", followedProfiles)
 
 	data := map[string]any{
-		"User":             user,
+		"LoggedInUser":     user,
 		"Posts":            postsFound,
 		"Query":            query,
 		"FollowedProfiles": followedProfiles,

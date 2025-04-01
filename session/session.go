@@ -16,8 +16,9 @@ func LoadRepo() ps.PostsRepositoryInterface {
 	perry := ps.UserInfo{Displayname: "perry", Email: "perry@hello.com", Bio: "It's me, Perry!", Photo: "perry.png"}
 	kate := ps.UserInfo{Displayname: "kate", Email: "kate@hello.com", Bio: "It's me, Kate!", Photo: "kiki.jpg"}
 	kev := ps.UserInfo{Displayname: "kev", Email: "kev@hello.com", Bio: "It's me, Kev!", Photo: "png-transparent-the-simpson-character-cletus-spuckler-groundskeeper-willie-snake-jailbird-mayor-quimby-ralph-wiggum-the-simpsons-movie-miscellaneous-television-vertebrate.png"}
-
-	repo.AddUserInfo(rich, bob, perry, kate, kev)
+	joan := ps.UserInfo{Displayname: "joan", Email: "joan@hello.com", Bio: "It's me, Joan!", Photo: "joan.jpg"}
+	may := ps.UserInfo{Displayname: "may", Email: "may@hello.com", Bio: "It's me, May!", Photo: "may.png"}
+	repo.AddUserInfo(rich, bob, perry, kate, kev, joan, may)
 
 	repo.PostMessage("rich", "Hello world! #hi")
 	repo.PostMessage("rich", "My friend Jack claims he can communicate with vegetables. I guess you could say... Jack and the beans talk. #funny")
@@ -26,7 +27,8 @@ func LoadRepo() ps.PostsRepositoryInterface {
 	repo.PostMessage("bob", `me: I just want 2 minutes of privacy in the bathroom. my kid: best I can do is a paleontology lecture.`)
 	repo.PostMessage("perry", "[first day as a spy] Wife: what’s your bosses name? Me: I can’t tell you that Wife: why? Me: because I don’t remember, Linda. #spy")
 	repo.PostMessage("perry", `hey "nice" manbun haha it fuckin sucks you hipster asshole [he turns around and reveals he is a samurai from the tokugawa shogunate] oh fuck`)
-
+	repo.PostMessage("joan", `I'm a cat person. #cat`)
+	repo.PostMessage("may", `I'm a dog person. #dog`)
 	fmt.Printf("%v\n", repo.GetHashTags())
 	fmt.Printf("Posts by user: %v\n", repo.PostsByUser(user1))
 	fmt.Printf("Posts by user: %v\n", repo.PostsByUser(user1, 1))
@@ -40,7 +42,12 @@ func LoadRepo() ps.PostsRepositoryInterface {
 	repo.Follow("rich", "perry")
 	repo.Follow("perry", "rich")
 	repo.Follow("rich", "kate")
-	// repo.Follow("rich", "kev")
+	repo.Follow("rich", "joan")
+	repo.Follow("joan", "rich")
+	repo.Follow("rich", "may")
+	repo.Follow("may", "rich")
+	repo.Follow("may", "joan")
+	repo.Follow("may", "kate")
 
 	fmt.Printf("Posts by user: %v\n", repo.PostsByUser(user1))
 	fmt.Printf("Posts relevant for user: %v\n", repo.PostsForUser(user1))

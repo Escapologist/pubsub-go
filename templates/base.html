@@ -17,18 +17,18 @@
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="/" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
-      {{ if .User }}
+      {{ if .LoggedInUser }}
       <div class="collapse navbar-collapse" id="navbarsExampleDefault">
         <ul class="navbar-nav mr-auto">
           <li class="nav-item active">
-            <a class="nav-link" href="/user/{{.User}}">Profile <span class="sr-only">(current)</span></a>
+            <a class="nav-link" href="/user/{{.LoggedInUser}}">Profile <span class="sr-only">(current)</span></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/user/{{.User}}/following">Following</a>
+            <a class="nav-link" href="/user/{{.LoggedInUser}}/following">Following</a>
           </li>
         </li> 
         <li class="nav-item">
-          <a class="nav-link" href="/user/{{.User}}/followers">Followers</a>
+          <a class="nav-link" href="/user/{{.LoggedInUser}}/followers">Followers</a>
         </li>
         </ul>
         <form class="form-inline my-2 my-lg-0" method="GET" action="/search">
