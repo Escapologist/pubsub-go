@@ -15,6 +15,13 @@ type AppHandler struct {
 	LoggedInUsers map[string]ps.User
 }
 
+func NewAppHandler(repo ps.PostsRepositoryInterface, loggedInUsers map[string]ps.User) *AppHandler {
+	return &AppHandler{
+		Repo:          repo,
+		LoggedInUsers: loggedInUsers,
+	}
+}
+
 // Auth
 
 func (h *AppHandler) CheckUser(u string, pw string) bool {

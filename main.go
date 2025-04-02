@@ -13,8 +13,8 @@ import (
 func main() {
 	repo := session.LoadRepo()
 	loggedInUsers := make(map[string]ps.User)
-	handler := web.AppHandler{Repo: repo, LoggedInUsers: loggedInUsers} // TODO need a constructor
-	mux := web.MakeServer(&handler)
+	handler := web.NewAppHandler(repo, loggedInUsers)
+	mux := web.MakeServer(handler)
 
 	s := http.Server{
 		Addr:         ":8080",
