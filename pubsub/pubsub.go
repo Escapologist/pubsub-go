@@ -62,6 +62,7 @@ type PostsRepositoryInterface interface {
 	Search(query string) []Post
 	GetHashTags() []string
 	SearchByTag(tag string) []Post
+	RegisterUser(name User, email string, bio string, photo string, password string) UserInfo
 }
 
 type PostsRepository struct {

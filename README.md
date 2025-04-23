@@ -42,7 +42,7 @@ http://localhost:8080
 ### Authentication
 - Login with one of the demo accounts, i.e.:
   - Username: `rich`
-  - Password: any non-empty string
+  - Password: `topsecret`
 
 ### Creating Posts
 1. Log in to your account

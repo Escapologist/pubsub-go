@@ -63,13 +63,9 @@ func (h *AppHandler) ShowLoginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
 
-	flashMessage := ""
-	if cookie, err := r.Cookie("flash"); err == nil {
-		flashMessage = cookie.Value
-		http.SetCookie(w, &http.Cookie{Name: "flash", Value: "", MaxAge: -1})
-	}
-
+	flashMessage := getFlashMessage(w, r)
 	data := map[string]string{"Title": "log in", "User": "", "FlashMessage": flashMessage}
+
 	t, err := template.ParseFiles("templates/base.html", "templates/login.html")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -82,15 +78,9 @@ func (h *AppHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	user := r.Form.Get("username")
 	pw := r.Form.Get("password")
 	loggedIn := h.CheckUser(user, pw)
-	fmt.Printf("User %v\n", user)
-	fmt.Printf("Password %v\n", pw)
-	fmt.Printf("Logged in %v\n", loggedIn)
 
 	if !loggedIn {
-		http.SetCookie(w, &http.Cookie{
-			Name:  "flash",
-			Value: "Wrong username and/or password!",
-		})
+		setFlashMessage(w, "Wrong username and/or password!")
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
@@ -105,6 +95,45 @@ func (h *AppHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{Name: "token", Value: token}
 	http.SetCookie(w, &cookie)
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+func (h *AppHandler) ShowSignupPage(w http.ResponseWriter, r *http.Request) {
+	u := h.GetLoggedInUser(r)
+	if u != "" {
+		http.Redirect(w, r, "/", http.StatusFound)
+	}
+	flashMessage := getFlashMessage(w, r)
+
+	data := map[string]string{"Title": "Sign up", "User": "", "FlashMessage": flashMessage}
+	t, err := template.ParseFiles("templates/base.html", "templates/signup.html")
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	}
+	t.ExecuteTemplate(w, "base", data)
+}
+
+func (h *AppHandler) HandleSignup(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	username := r.Form.Get("username")
+	email := r.Form.Get("email")
+	password := r.Form.Get("password")
+	repeatPassword := r.Form.Get("repeatpassword")
+	if password != repeatPassword {
+		setFlashMessage(w, "Passwords don't match!")
+		http.Redirect(w, r, "/signup", http.StatusFound)
+		return
+	}
+
+	user := h.Repo.GetUserInfo(username)
+	if user.Displayname != "" {
+		setFlashMessage(w, "Username already exists")
+		http.Redirect(w, r, "/signup", http.StatusFound)
+		return
+	}
+
+	h.Repo.RegisterUser(username, email, "", "", password)
+	setFlashMessage(w, "User created successfully!")
+	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
 func (h *AppHandler) ShowMainPage(w http.ResponseWriter, r *http.Request, loggedInUser string) {
@@ -171,14 +200,15 @@ func (h *AppHandler) ShowUserPage(w http.ResponseWriter, r *http.Request, logged
 	following := h.Repo.GetFollowed(name)
 	followed := followers[loggedInUser]
 	data := map[string]any{
-		"Title":        name,
-		"LoggedInUser": loggedInUser,
-		"User":         string(name),
-		"UserInfo":     userInfo,
-		"Posts":        posts,
-		"Followers":    followers,
-		"Following":    following,
-		"Followed":     followed,
+		"Title":         name,
+		"LoggedInUser":  loggedInUser,
+		"User":          string(name),
+		"UserInfo":      userInfo,
+		"Posts":         posts,
+		"Followers":     followers,
+		"Following":     following,
+		"Followed":      followed,
+		"IsCurrentUser": loggedInUser == name,
 	}
 
 	t, err := template.ParseFiles("templates/base.html", "templates/user.html")
@@ -283,6 +313,8 @@ func MakeServer(h *AppHandler) *http.ServeMux {
 
 	mux.HandleFunc("GET /login", h.ShowLoginPage)
 	mux.HandleFunc("POST /login", h.HandleLogin)
+	mux.HandleFunc("GET /signup", h.ShowSignupPage)
+	mux.HandleFunc("POST /signup", h.HandleSignup)
 
 	mux.HandleFunc("/", h.loginRequired(h.ShowMainPage))
 	mux.HandleFunc("POST /postmessage", h.loginRequired(h.MakePost))
