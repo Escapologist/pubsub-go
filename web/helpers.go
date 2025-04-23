@@ -1,7 +1,6 @@
 package web
 
 import (
-	"fmt"
 	"net/http"
 )
 
@@ -17,7 +16,6 @@ func setFlashMessage(w http.ResponseWriter, message string) {
 func getFlashMessage(w http.ResponseWriter, r *http.Request) string {
 	cookie, err := r.Cookie("flash")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
 		return ""
 	}
 	flashMessage := cookie.Value

@@ -12,7 +12,7 @@ func LoadRepo() *ps.PostsRepository {
 	repo.RegisterUser("paul", "paul@hello.com", "It's me, Paul!", "paul.png", "topsecret")
 	repo.RegisterUser("perry", "perry@hello.com", "It's me, Perry!", "perry.png", "topsecret")
 	repo.RegisterUser("jack", "jack@hello.com", "Drink! Feck! Girls!", "jack.png", "topsecret")
-	repo.RegisterUser("diana", "diana@hello.com", "It's me, Joan!", "diana.jpg", "topsecret")
+	repo.RegisterUser("diana", "diana@hello.com", "It's me, Diana!", "diana.png", "topsecret")
 	repo.RegisterUser("may", "may@hello.com", "It's me, May!", "may.png", "topsecret")
 	repo.RegisterUser("rutger", "rutger@hello.com", "I've seen things you people wouldn't believe...", "rutger.png", "topsecret")
 
