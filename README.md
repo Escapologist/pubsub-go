@@ -1,8 +1,8 @@
 # GoPubSub
 
-A social media platform built with Go that allows users to post messages, follow other users, and interact with posts. This project demonstrates Go web development concepts including HTTP servers, templates, and basic social networking features.
+A simple social media platform built with Go that allows users to post messages, follow other users and interact with posts. This project is for learning and teaching Go web development concepts including HTTP servers, templates, and basic social networking features.
 
-> **Note**: This project is loosely inspired by Raymond Hettinger's [pubsub educational demo](https://github.com/rhettinger/modernpython/tree/master/pubsub) from his Modern Python course. While the core concepts are similar, this implementation is built in Go and includes additional features.
+> **Note**: This project is loosely inspired by Raymond Hettinger's excellent [pubsub educational demo](https://github.com/rhettinger/modernpython/tree/master/pubsub) from his Modern Python course. While the core concepts are similar, this implementation is built in Go and includes additional features.
 
 ## Features
 

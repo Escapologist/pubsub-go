@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 //https://github.com/rhettinger/modernpython/blob/master/pubsub/pubsub.py
@@ -28,10 +30,11 @@ func (p *Post) TimeSincePosted() time.Duration {
 }
 
 type UserInfo struct {
-	Displayname string
-	Email       string
-	Bio         string
-	Photo       string
+	Displayname    string
+	Email          string
+	Bio            string
+	Photo          string
+	HashedPassword []byte
 }
 
 var hashtagPattern = regexp.MustCompile(`[#@]\w+`)
@@ -76,7 +79,7 @@ func NewPostsRepository() *PostsRepository {
 	return &PostsRepository{
 		Posts:        []Post{},
 		UserPosts:    make(map[User][]Post),
-		UserInfo:     make(map[string]UserInfo),
+		UserInfo:     make(map[User]UserInfo),
 		Following:    make(map[User]Set[User]),
 		Followers:    make(map[User]Set[User]),
 		HashtagIndex: make(map[string][]Post),
@@ -98,6 +101,16 @@ func (r *PostsRepository) PostMessage(user User, text string) {
 		key := string(h)
 		r.HashtagIndex[key] = append(r.HashtagIndex[key], post)
 	}
+}
+
+func (r *PostsRepository) RegisterUser(name User, email string, bio string, photo string, password string) UserInfo {
+	HashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	if err != nil {
+		panic(err)
+	}
+	userInfo := UserInfo{Displayname: string(name), Email: email, Bio: bio, Photo: photo, HashedPassword: HashedPassword}
+	r.UserInfo[name] = userInfo
+	return userInfo
 }
 
 func (r *PostsRepository) Follow(user User, followedUser User) {

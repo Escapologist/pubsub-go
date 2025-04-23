@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 
+	"golang.org/x/crypto/bcrypt"
 	ps "pubsub.com/pubsub/pubsub"
 )
 
@@ -25,7 +26,9 @@ func NewAppHandler(repo ps.PostsRepositoryInterface, loggedInUsers map[string]ps
 // Auth
 
 func (h *AppHandler) CheckUser(u string, pw string) bool {
-	return u != "" && pw != ""
+	user := h.Repo.GetUserInfo(u)
+	err := bcrypt.CompareHashAndPassword(user.HashedPassword, []byte(pw))
+	return err == nil
 }
 
 func (h *AppHandler) GetLoggedInUser(r *http.Request) string {
@@ -43,6 +46,7 @@ func (h *AppHandler) loginRequired(fn func(http.ResponseWriter, *http.Request, s
 		token, err := r.Cookie("token")
 		if err != nil {
 			http.Redirect(w, r, "/login", http.StatusFound)
+			return
 		}
 		u := h.LoggedInUsers[token.Value]
 		if u == "" {
@@ -58,7 +62,14 @@ func (h *AppHandler) ShowLoginPage(w http.ResponseWriter, r *http.Request) {
 	if u != "" {
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
-	data := map[string]string{"Title": "log in", "User": ""}
+
+	flashMessage := ""
+	if cookie, err := r.Cookie("flash"); err == nil {
+		flashMessage = cookie.Value
+		http.SetCookie(w, &http.Cookie{Name: "flash", Value: "", MaxAge: -1})
+	}
+
+	data := map[string]string{"Title": "log in", "User": "", "FlashMessage": flashMessage}
 	t, err := template.ParseFiles("templates/base.html", "templates/login.html")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -76,7 +87,11 @@ func (h *AppHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Logged in %v\n", loggedIn)
 
 	if !loggedIn {
-		http.Redirect(w, r, "/login", http.StatusUnauthorized)
+		http.SetCookie(w, &http.Cookie{
+			Name:  "flash",
+			Value: "Wrong username and/or password!",
+		})
+		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
 
@@ -272,8 +287,8 @@ func MakeServer(h *AppHandler) *http.ServeMux {
 	mux.HandleFunc("/", h.loginRequired(h.ShowMainPage))
 	mux.HandleFunc("POST /postmessage", h.loginRequired(h.MakePost))
 	mux.HandleFunc("GET /user/{name}", h.loginRequired(h.ShowUserPage))
-	mux.HandleFunc("POST /user/{followee}/follow", h.loginRequired(h.FollowUser))     // New endpoint for following a user
-	mux.HandleFunc("POST /user/{followee}/unfollow", h.loginRequired(h.UnfollowUser)) // New endpoint for unfollowing a user
+	mux.HandleFunc("POST /user/{followee}/follow", h.loginRequired(h.FollowUser))
+	mux.HandleFunc("POST /user/{followee}/unfollow", h.loginRequired(h.UnfollowUser))
 	mux.HandleFunc("GET /user/{follower}/following", h.loginRequired(h.ShowFollowed))
 	mux.HandleFunc("GET /user/{followee}/followers", h.loginRequired(h.ShowFollowers))
 	mux.HandleFunc("GET /search", h.loginRequired(h.SearchPosts))
